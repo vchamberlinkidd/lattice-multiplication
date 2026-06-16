@@ -469,7 +469,6 @@
 let digits1 = [], digits2 = [], correctAnswer = 0;
 let isWorkingShown = false;
 
-// MODIFICATION 4: New unified handler for the number fields
 function handleSetupInput(el) {
   el.value = el.value.replace(/[^0-9]/g, '');
   buildGrid();
@@ -479,7 +478,6 @@ function buildGrid() {
   const v1 = document.getElementById('num1').value.trim();
   const v2 = document.getElementById('num2').value.trim();
   
-  // MODIFICATION 5: If fields are empty, hide everything so it doesn't break
   if (!v1 || !v2 || isNaN(v1) || isNaN(v2) || v1 === '' || v2 === '') {
     document.getElementById('grid-section').style.display = 'none';
     document.getElementById('answer-band').style.display = 'none';
@@ -497,7 +495,8 @@ function buildGrid() {
 
   const cols = digits1.length;
   const rows = digits2.length;
-  const totalDiags = rows + cols - 1;
+  // FIX: True lattice multiplication has (rows + cols) diagonals, not (rows + cols - 1)
+  const totalDiags = rows + cols; 
 
   let html = '<table class="lattice"><tbody>';
 
@@ -507,7 +506,8 @@ function buildGrid() {
   for (let c = 0; c < cols; c++) {
     html += `<td><div class="top-digit">${digits1[c]}</div></td>`;
   }
-  html += `<td colspan="${totalDiags}"></td>`;
+  // FIX: Ensure correct column spanning for perfect layout alignment
+  html += `<td colspan="${totalDiags + 1}"></td>`;
   html += '</tr>';
 
   // Main rows
@@ -532,14 +532,14 @@ function buildGrid() {
     html += `<td><div class="left-digit">${digits2[r]}</div></td>`;
 
     // Diagonal columns
-    for (let d = 1; d < totalDiags; d++) {
+    for (let d = 0; d < totalDiags; d++) {
       html += `<td><div class="diag-cell"></div></td>`;
     }
 
     html += '</tr>';
   }
 
-  // Diagonal sums row
+  // Diagonal sums row (Bottom)
   html += '<tr>';
   html += `<td><div class="corner"></div></td>`;
   for (let c = 0; c < cols; c++) {
@@ -585,26 +585,38 @@ function cellNav(e, id, r, c, part) {
   }
 }
 
+// FIX: Completely rewritten mathematical mapping for proper lattice diagonals
 function updateDiagonals() {
   const rows = digits2.length, cols = digits1.length;
-  const totalDiags = rows + cols - 1;
+  const totalDiags = rows + cols;
+  
+  let sums = new Array(totalDiags).fill(0);
+  let complete = new Array(totalDiags).fill(true);
 
-  for (let d = 0; d < totalDiags; d++) {
-    let sum = 0, complete = true;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (c + (rows - 1 - r) === d) {
-          const t = document.getElementById(`cell_${r}_${c}_t`)?.value;
-          const b = document.getElementById(`cell_${r}_${c}_b`)?.value;
-          if (t === '' || b === '') complete = false;
-          sum += (parseInt(t) || 0) + (parseInt(b) || 0);
-        }
+  // Map each triangle to its correct diagonal stripe index (left-to-right)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const t_str = document.getElementById(`cell_${r}_${c}_t`)?.value;
+      const b_str = document.getElementById(`cell_${r}_${c}_b`)?.value;
+
+      if (t_str === '' || b_str === '') {
+        complete[r + c] = false;
+        complete[r + c + 1] = false;
+      } else {
+        // The top triangle contributes to diagonal (r + c)
+        sums[r + c] += parseInt(t_str) || 0;
+        // The bottom triangle contributes to the next diagonal (r + c + 1)
+        sums[r + c + 1] += parseInt(b_str) || 0;
       }
     }
+  }
+
+  // Render the sums to the screen
+  for (let d = 0; d < totalDiags; d++) {
     const el = document.getElementById(`diag_${d}`);
     if (el) {
-      el.textContent = complete ? sum : '?';
-      el.className = complete ? 'diag-value filled' : 'diag-value';
+      el.textContent = complete[d] ? sums[d] : '?';
+      el.className = complete[d] ? 'diag-value filled' : 'diag-value';
     }
   }
 }
@@ -615,7 +627,7 @@ function toggleWorking() {
   toggleBtn.textContent = isWorkingShown ? 'Hide working' : 'Show working';
 
   const rows = digits2.length, cols = digits1.length;
-  const totalDiags = rows + cols - 1;
+  const totalDiags = rows + cols;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -672,8 +684,8 @@ function clearFeedback() {
   document.getElementById('feedback').className = 'feedback';
 }
 
-// Initial build logic on load
 buildGrid();
 </script>
+
 </body>
 </html>
