@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lattice Multiplication</title>
   <style>
+    /* CSS remains exactly the same as your original code */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -419,8 +420,7 @@
       </div>
       <div class="btn-row">
         <button class="primary" onclick="buildGrid()">Build lattice</button>
-        <button class="secondary" onclick="clearCells()">Clear grid</button>
-        <button onclick="showAnswers()">Show working</button>
+        <button class="secondary" id="toggle-btn" onclick="toggleWorking()">Show working</button>
       </div>
     </div>
   </div>
@@ -468,6 +468,7 @@
 
 <script>
 let digits1 = [], digits2 = [], correctAnswer = 0;
+let isWorkingShown = false; // MODIFICATION 2: Track toggle state
 
 function buildGrid() {
   const v1 = document.getElementById('num1').value.trim();
@@ -478,10 +479,13 @@ function buildGrid() {
   digits2 = v2.split('').map(Number);
   correctAnswer = parseInt(v1) * parseInt(v2);
 
+  // Reset toggle state on new build
+  isWorkingShown = false;
+  document.getElementById('toggle-btn').textContent = 'Show working';
+
   const cols = digits1.length;
   const rows = digits2.length;
   const totalDiags = rows + cols - 1;
-  const cellSize = 72;
 
   let html = '<table class="lattice"><tbody>';
 
@@ -593,43 +597,47 @@ function updateDiagonals() {
   }
 }
 
-function clearCells() {
+// MODIFICATION 3: Combined show/clear logic into one function
+function toggleWorking() {
+  isWorkingShown = !isWorkingShown;
+  const toggleBtn = document.getElementById('toggle-btn');
+  toggleBtn.textContent = isWorkingShown ? 'Hide working' : 'Show working';
+
   const rows = digits2.length, cols = digits1.length;
   const totalDiags = rows + cols - 1;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const t = document.getElementById(`cell_${r}_${c}_t`);
-      const b = document.getElementById(`cell_${r}_${c}_b`);
-      if (t) { t.value = ''; t.className = 'inp-top'; }
-      if (b) { b.value = ''; b.className = 'inp-bot'; }
-    }
-  }
-  for (let d = 0; d < totalDiags; d++) {
-    const el = document.getElementById(`diag_${d}`);
-    if (el) { el.textContent = '?'; el.className = 'diag-value'; }
-  }
-  document.getElementById('student-answer').value = '';
-  clearFeedback();
-}
 
-function showAnswers() {
-  const rows = digits2.length, cols = digits1.length;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const product = digits1[c] * digits2[r];
       const t = document.getElementById(`cell_${r}_${c}_t`);
       const b = document.getElementById(`cell_${r}_${c}_b`);
-      if (t) { t.value = Math.floor(product / 10); t.className = 'inp-top given'; }
-      if (b) { b.value = product % 10; b.className = 'inp-bot given'; }
+      
+      if (isWorkingShown) {
+        const product = digits1[c] * digits2[r];
+        if (t) { t.value = Math.floor(product / 10); t.className = 'inp-top given'; }
+        if (b) { b.value = product % 10; b.className = 'inp-bot given'; }
+      } else {
+        if (t) { t.value = ''; t.className = 'inp-top'; }
+        if (b) { b.value = ''; b.className = 'inp-bot'; }
+      }
     }
   }
-  updateDiagonals();
-  document.getElementById('student-answer').value = correctAnswer;
-  const fb = document.getElementById('feedback');
-  const v1 = document.getElementById('num1').value;
-  const v2 = document.getElementById('num2').value;
-  fb.textContent = `The correct answer is ${v1} × ${v2} = ${correctAnswer}. The grid is filled with the correct values — check your working!`;
-  fb.className = 'feedback correct';
+
+  if (isWorkingShown) {
+    updateDiagonals();
+    document.getElementById('student-answer').value = correctAnswer;
+    const fb = document.getElementById('feedback');
+    const v1 = document.getElementById('num1').value;
+    const v2 = document.getElementById('num2').value;
+    fb.textContent = `The correct answer is ${v1} × ${v2} = ${correctAnswer}. The grid is filled with the correct values — check your working!`;
+    fb.className = 'feedback correct';
+  } else {
+    for (let d = 0; d < totalDiags; d++) {
+      const el = document.getElementById(`diag_${d}`);
+      if (el) { el.textContent = '?'; el.className = 'diag-value'; }
+    }
+    document.getElementById('student-answer').value = '';
+    clearFeedback();
+  }
 }
 
 function checkAnswer() {
