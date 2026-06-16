@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lattice Multiplication</title>
   <style>
-    /* CSS remains exactly the same */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -238,8 +237,9 @@
       padding: 0;
     }
 
+    /* Added dynamic color focus adjustments to keep text readable */
     .cell-wrap input:focus {
-      background: rgba(45, 106, 79, 0.08);
+      background: rgba(0, 0, 0, 0.06);
       border-radius: 4px;
     }
 
@@ -265,11 +265,13 @@
       font-family: 'Georgia', serif;
       font-size: 1.1rem;
       color: var(--text-muted);
+      border-radius: var(--radius);
     }
 
     .diag-value.filled {
-      color: var(--accent-text);
+      color: var(--text);
       font-weight: bold;
+      border: 1px solid rgba(0,0,0,0.1);
     }
 
     .answer-band {
@@ -425,7 +427,7 @@
   </div>
 
   <div class="hint" id="hint">
-    <strong>How to use:</strong> Enter two numbers above. For each cell, multiply the column digit by the row digit. Write the <strong>tens</strong> in the top-left triangle and the <strong>units</strong> in the bottom-right triangle. Then add along each diagonal to find your answer.
+    <strong>How to use:</strong> Enter two numbers above. For each cell, multiply the column digit by the row digit. Write the <strong>tens</strong> in the top-left triangle and the <strong>units</strong> in the bottom-right triangle. Follow the <strong>matching colored stripes</strong> diagonally down to add your totals together!
   </div>
 
   <div class="grid-section" id="grid-section" style="display:none;">
@@ -451,11 +453,11 @@
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <div class="step-text"><strong>Add the diagonals:</strong> Starting from the bottom-right, add all numbers in each diagonal stripe. The running total appears below the grid.</div>
+        <div class="step-text"><strong>Add the diagonals:</strong> Follow the color paths! Starting from the bottom-right, add all numbers sitting inside the same colored stripes. The totals appear below.</div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text"><strong>Carry if needed:</strong> If a diagonal sum is 10 or more, carry the tens digit into the next diagonal to the left.</div>
+        <div class="step-text"><strong>Carry if needed:</strong> If a diagonal sum is 10 or more, carry the tens digit into the next colored diagonal path to its left.</div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
@@ -468,6 +470,20 @@
 <script>
 let digits1 = [], digits2 = [], correctAnswer = 0;
 let isWorkingShown = false;
+
+// MODIFICATION: Added an array of distinct, soft pastel colors for up to 10 diagonals (maximum 5x5 digits)
+const diagonalColors = [
+  '#e2ece9', // Muted Sage Green
+  '#f5e6e8', // Soft Rose Pink
+  '#e8e8f4', // Pale Lavender Blue
+  '#f7eedf', // Warm Sand/Cream
+  '#e3f2fd', // Light Sky Blue
+  '#fbe9e7', // Pale Apricot/Coral
+  '#f3e5f5', // Soft Lilac
+  '#e8f5e9', // Mint Tint
+  '#efebe9', // Muted Taupe/Gray
+  '#fff3e0'  // Pale Soft Orange
+];
 
 function handleSetupInput(el) {
   el.value = el.value.replace(/[^0-9]/g, '');
@@ -495,7 +511,6 @@ function buildGrid() {
 
   const cols = digits1.length;
   const rows = digits2.length;
-  // FIX: True lattice multiplication has (rows + cols) diagonals, not (rows + cols - 1)
   const totalDiags = rows + cols; 
 
   let html = '<table class="lattice"><tbody>';
@@ -506,7 +521,6 @@ function buildGrid() {
   for (let c = 0; c < cols; c++) {
     html += `<td><div class="top-digit">${digits1[c]}</div></td>`;
   }
-  // FIX: Ensure correct column spanning for perfect layout alignment
   html += `<td colspan="${totalDiags + 1}"></td>`;
   html += '</tr>';
 
@@ -516,8 +530,15 @@ function buildGrid() {
     html += `<td><div class="corner"></div></td>`;
     for (let c = 0; c < cols; c++) {
       const id = `cell_${r}_${c}`;
+      
+      // MODIFICATION: Look up the respective diagonal color sequence index for top vs bottom paths
+      const topColor = diagonalColors[(r + c) % diagonalColors.length];
+      const botColor = diagonalColors[(r + c + 1) % diagonalColors.length];
+
       html += `<td><div class="cell-wrap" id="${id}">
         <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="0,0 72,0 0,72" fill="${topColor}" />
+          <polygon points="72,0 72,72 0,72" fill="${botColor}" />
           <rect x="0.5" y="0.5" width="71" height="71" fill="none" stroke="#c5c2b8" stroke-width="0.75"/>
           <line x1="0" y1="72" x2="72" y2="0" stroke="#9b9890" stroke-width="0.75"/>
         </svg>
@@ -531,7 +552,7 @@ function buildGrid() {
     // Right digit
     html += `<td><div class="left-digit">${digits2[r]}</div></td>`;
 
-    // Diagonal columns
+    // Empty structural spacing columns
     for (let d = 0; d < totalDiags; d++) {
       html += `<td><div class="diag-cell"></div></td>`;
     }
@@ -539,7 +560,7 @@ function buildGrid() {
     html += '</tr>';
   }
 
-  // Diagonal sums row (Bottom)
+  // Diagonal sums row (Bottom row results)
   html += '<tr>';
   html += `<td><div class="corner"></div></td>`;
   for (let c = 0; c < cols; c++) {
@@ -547,7 +568,9 @@ function buildGrid() {
   }
   html += `<td></td>`;
   for (let d = 0; d < totalDiags; d++) {
-    html += `<td><div class="diag-value" id="diag_${d}">?</div></td>`;
+    // MODIFICATION: Styled the result boxes to visually match the diagonal path backgrounds
+    const diagColor = diagonalColors[d % diagonalColors.length];
+    html += `<td><div class="diag-value" id="diag_${d}" style="background-color: ${diagColor};">?</div></td>`;
   }
   html += '</tr>';
 
@@ -585,7 +608,6 @@ function cellNav(e, id, r, c, part) {
   }
 }
 
-// FIX: Completely rewritten mathematical mapping for proper lattice diagonals
 function updateDiagonals() {
   const rows = digits2.length, cols = digits1.length;
   const totalDiags = rows + cols;
@@ -593,7 +615,6 @@ function updateDiagonals() {
   let sums = new Array(totalDiags).fill(0);
   let complete = new Array(totalDiags).fill(true);
 
-  // Map each triangle to its correct diagonal stripe index (left-to-right)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const t_str = document.getElementById(`cell_${r}_${c}_t`)?.value;
@@ -603,15 +624,12 @@ function updateDiagonals() {
         complete[r + c] = false;
         complete[r + c + 1] = false;
       } else {
-        // The top triangle contributes to diagonal (r + c)
         sums[r + c] += parseInt(t_str) || 0;
-        // The bottom triangle contributes to the next diagonal (r + c + 1)
         sums[r + c + 1] += parseInt(b_str) || 0;
       }
     }
   }
 
-  // Render the sums to the screen
   for (let d = 0; d < totalDiags; d++) {
     const el = document.getElementById(`diag_${d}`);
     if (el) {
@@ -686,6 +704,5 @@ function clearFeedback() {
 
 buildGrid();
 </script>
-
 </body>
 </html>
