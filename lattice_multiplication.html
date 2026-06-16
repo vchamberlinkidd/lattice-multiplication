@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lattice Multiplication</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f2;
+      --surface: #ffffff;
+      --surface2: #f0efe9;
+      --border: #d8d6ce;
+      --border-strong: #b8b5aa;
+      --text: #1a1917;
+      --text-muted: #6b6860;
+      --accent: #2d6a4f;
+      --accent-light: #d8ede3;
+      --accent-text: #1a4a35;
+      --info: #1e4d8c;
+      --info-light: #dce8f7;
+      --info-text: #0f2d57;
+      --danger: #8c1e1e;
+      --danger-light: #f7dcdc;
+      --danger-text: #5a0f0f;
+      --grid-line: #c5c2b8;
+      --diagonal: #9b9890;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: normal;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    header span {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-family: 'Arial', sans-serif;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .field input[type="text"] {
+      font-family: 'Georgia', serif;
+      font-size: 1.5rem;
+      font-weight: normal;
+      width: 110px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      letter-spacing: 0.15em;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus {
+      border-color: var(--accent);
+    }
+
+    .times-sign {
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      padding-bottom: 8px;
+      font-family: 'Georgia', serif;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-bottom: 8px;
+    }
+
+    button {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    button:hover { background: var(--surface2); border-color: var(--border-strong); }
+    button:active { transform: scale(0.98); }
+
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.primary:hover { background: var(--accent-text); border-color: var(--accent-text); }
+
+    button.secondary {
+      background: var(--surface2);
+      border-color: var(--border);
+    }
+
+    .hint {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      background: var(--surface2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 0.875rem 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .hint strong { color: var(--accent-text); font-weight: 600; }
+
+    .grid-section {
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+
+    table.lattice {
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    table.lattice td {
+      padding: 0;
+      position: relative;
+    }
+
+    .top-digit, .left-digit {
+      font-family: 'Georgia', serif;
+      font-size: 1.3rem;
+      font-weight: normal;
+      color: var(--accent-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+    }
+
+    .left-digit {
+      justify-content: flex-end;
+      padding-right: 10px;
+    }
+
+    .corner { width: 72px; height: 72px; }
+
+    .cell-wrap {
+      width: 72px;
+      height: 72px;
+      position: relative;
+      display: block;
+    }
+
+    .cell-wrap svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    .cell-wrap input {
+      position: absolute;
+      width: 32px;
+      text-align: center;
+      font-family: 'Georgia', serif;
+      font-size: 1.1rem;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      outline: none;
+      padding: 0;
+    }
+
+    .cell-wrap input:focus {
+      background: rgba(45, 106, 79, 0.08);
+      border-radius: 4px;
+    }
+
+    .cell-wrap input.given {
+      color: var(--info-text);
+      font-weight: bold;
+    }
+
+    .inp-top { top: 10px; left: 4px; }
+    .inp-bot { bottom: 10px; right: 4px; }
+
+    .diag-cell {
+      width: 48px;
+      height: 72px;
+    }
+
+    .diag-value {
+      width: 48px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Georgia', serif;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    .diag-value.filled {
+      color: var(--accent-text);
+      font-weight: bold;
+    }
+
+    .answer-band {
+      background: var(--accent-light);
+      border: 1px solid #a8d5bc;
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .answer-band h2 {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent-text);
+      margin-bottom: 0.875rem;
+    }
+
+    .answer-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .answer-row .eq {
+      font-family: 'Georgia', serif;
+      font-size: 1.2rem;
+      color: var(--accent-text);
+    }
+
+    .answer-row input {
+      font-family: 'Georgia', serif;
+      font-size: 1.4rem;
+      width: 150px;
+      padding: 7px 12px;
+      border: 1px solid #a8d5bc;
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      letter-spacing: 0.08em;
+    }
+
+    .answer-row input:focus { border-color: var(--accent); }
+
+    .feedback {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.875rem;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      display: none;
+      line-height: 1.5;
+    }
+
+    .feedback.correct {
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border: 1px solid #a8d5bc;
+      display: block;
+    }
+
+    .feedback.wrong {
+      background: var(--danger-light);
+      color: var(--danger-text);
+      border: 1px solid #e8b0b0;
+      display: block;
+    }
+
+    .step-guide {
+      background: var(--surface2);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+    }
+
+    .step-guide h2 {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.875rem;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-text {
+      font-family: 'Arial', sans-serif;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .step-text strong { color: var(--text); }
+
+    @media (max-width: 600px) {
+      main { padding: 1rem 1rem 3rem; }
+      header { padding: 1rem; }
+      .card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Lattice Multiplication</h1>
+  <span>An interactive grid for learning</span>
+</header>
+
+<main>
+  <div class="card">
+    <p class="card-label">Set your numbers</p>
+    <div class="controls">
+      <div class="field">
+        <label>First number</label>
+        <input type="text" id="num1" value="36" maxlength="5" placeholder="e.g. 36" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+      </div>
+      <div class="times-sign">×</div>
+      <div class="field">
+        <label>Second number</label>
+        <input type="text" id="num2" value="47" maxlength="5" placeholder="e.g. 47" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+      </div>
+      <div class="btn-row">
+        <button class="primary" onclick="buildGrid()">Build lattice</button>
+        <button class="secondary" onclick="clearCells()">Clear grid</button>
+        <button onclick="showAnswers()">Show working</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">
+    <strong>How to use:</strong> Enter two numbers above and press <strong>Build lattice</strong>. For each cell, multiply the column digit by the row digit. Write the <strong>tens</strong> in the top-left triangle and the <strong>units</strong> in the bottom-right triangle. Then add along each diagonal to find your answer.
+  </div>
+
+  <div class="grid-section" id="grid-section" style="display:none;">
+    <div id="grid-wrap"></div>
+  </div>
+
+  <div class="answer-band" id="answer-band" style="display:none;">
+    <h2>Check your answer</h2>
+    <div class="answer-row">
+      <span class="eq" id="eq-label"></span>
+      <input type="text" id="student-answer" placeholder="Your answer…" oninput="clearFeedback()" />
+      <button class="primary" onclick="checkAnswer()">Check</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="step-guide">
+    <h2>Step-by-step reminder</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Fill each cell:</strong> Multiply the digit at the top of each column by the digit at the right of each row. Write the tens in the top-left triangle and units in the bottom-right.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Add the diagonals:</strong> Starting from the bottom-right, add all numbers in each diagonal stripe. The running total appears below the grid.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Carry if needed:</strong> If a diagonal sum is 10 or more, carry the tens digit into the next diagonal to the left.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Read your answer:</strong> Read the diagonal sums from left to right — that's your final answer! Enter it above to check.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let digits1 = [], digits2 = [], correctAnswer = 0;
+
+function buildGrid() {
+  const v1 = document.getElementById('num1').value.trim();
+  const v2 = document.getElementById('num2').value.trim();
+  if (!v1 || !v2 || isNaN(v1) || isNaN(v2) || v1 === '' || v2 === '') return;
+
+  digits1 = v1.split('').map(Number);
+  digits2 = v2.split('').map(Number);
+  correctAnswer = parseInt(v1) * parseInt(v2);
+
+  const cols = digits1.length;
+  const rows = digits2.length;
+  const totalDiags = rows + cols - 1;
+  const cellSize = 72;
+
+  let html = '<table class="lattice"><tbody>';
+
+  // Top digit row
+  html += '<tr>';
+  html += `<td><div class="corner"></div></td>`;
+  for (let c = 0; c < cols; c++) {
+    html += `<td><div class="top-digit">${digits1[c]}</div></td>`;
+  }
+  html += `<td colspan="${totalDiags}"></td>`;
+  html += '</tr>';
+
+  // Main rows
+  for (let r = 0; r < rows; r++) {
+    html += '<tr>';
+    html += `<td><div class="corner"></div></td>`;
+    for (let c = 0; c < cols; c++) {
+      const id = `cell_${r}_${c}`;
+      html += `<td><div class="cell-wrap" id="${id}">
+        <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0.5" y="0.5" width="71" height="71" fill="none" stroke="#c5c2b8" stroke-width="0.75"/>
+          <line x1="0" y1="72" x2="72" y2="0" stroke="#9b9890" stroke-width="0.75"/>
+        </svg>
+        <input class="inp-top" type="text" maxlength="1" id="${id}_t" placeholder="·"
+               oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_t',${r},${c},'t')" />
+        <input class="inp-bot" type="text" maxlength="1" id="${id}_b" placeholder="·"
+               oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')" />
+      </div></td>`;
+    }
+
+    // Right digit
+    html += `<td><div class="left-digit">${digits2[r]}</div></td>`;
+
+    // Diagonal columns
+    for (let d = 1; d < totalDiags; d++) {
+      html += `<td><div class="diag-cell"></div></td>`;
+    }
+
+    html += '</tr>';
+  }
+
+  // Diagonal sums row
+  html += '<tr>';
+  html += `<td><div class="corner"></div></td>`;
+  for (let c = 0; c < cols; c++) {
+    html += `<td></td>`;
+  }
+  html += `<td></td>`;
+  for (let d = 0; d < totalDiags; d++) {
+    html += `<td><div class="diag-value" id="diag_${d}">?</div></td>`;
+  }
+  html += '</tr>';
+
+  html += '</tbody></table>';
+
+  document.getElementById('grid-wrap').innerHTML = html;
+  document.getElementById('hint').style.display = 'none';
+  document.getElementById('grid-section').style.display = 'block';
+  document.getElementById('answer-band').style.display = 'block';
+  document.getElementById('eq-label').textContent = `${v1} × ${v2} =`;
+  document.getElementById('student-answer').value = '';
+  clearFeedback();
+}
+
+function onCellInput(el) {
+  el.value = el.value.replace(/[^0-9]/g, '').slice(-1);
+  updateDiagonals();
+}
+
+function cellNav(e, id, r, c, part) {
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    if (part === 't') {
+      document.getElementById(`cell_${r}_${c}_b`)?.focus();
+    } else {
+      const nc = c + 1;
+      if (nc < digits1.length) {
+        document.getElementById(`cell_${r}_${nc}_t`)?.focus();
+      } else if (r + 1 < digits2.length) {
+        document.getElementById(`cell_${r+1}_0_t`)?.focus();
+      } else {
+        document.getElementById('student-answer')?.focus();
+      }
+    }
+  }
+}
+
+function updateDiagonals() {
+  const rows = digits2.length, cols = digits1.length;
+  const totalDiags = rows + cols - 1;
+
+  for (let d = 0; d < totalDiags; d++) {
+    let sum = 0, complete = true;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (c + (rows - 1 - r) === d) {
+          const t = document.getElementById(`cell_${r}_${c}_t`)?.value;
+          const b = document.getElementById(`cell_${r}_${c}_b`)?.value;
+          if (t === '' || b === '') complete = false;
+          sum += (parseInt(t) || 0) + (parseInt(b) || 0);
+        }
+      }
+    }
+    const el = document.getElementById(`diag_${d}`);
+    if (el) {
+      el.textContent = complete ? sum : '?';
+      el.className = complete ? 'diag-value filled' : 'diag-value';
+    }
+  }
+}
+
+function clearCells() {
+  const rows = digits2.length, cols = digits1.length;
+  const totalDiags = rows + cols - 1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const t = document.getElementById(`cell_${r}_${c}_t`);
+      const b = document.getElementById(`cell_${r}_${c}_b`);
+      if (t) { t.value = ''; t.className = 'inp-top'; }
+      if (b) { b.value = ''; b.className = 'inp-bot'; }
+    }
+  }
+  for (let d = 0; d < totalDiags; d++) {
+    const el = document.getElementById(`diag_${d}`);
+    if (el) { el.textContent = '?'; el.className = 'diag-value'; }
+  }
+  document.getElementById('student-answer').value = '';
+  clearFeedback();
+}
+
+function showAnswers() {
+  const rows = digits2.length, cols = digits1.length;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const product = digits1[c] * digits2[r];
+      const t = document.getElementById(`cell_${r}_${c}_t`);
+      const b = document.getElementById(`cell_${r}_${c}_b`);
+      if (t) { t.value = Math.floor(product / 10); t.className = 'inp-top given'; }
+      if (b) { b.value = product % 10; b.className = 'inp-bot given'; }
+    }
+  }
+  updateDiagonals();
+  document.getElementById('student-answer').value = correctAnswer;
+  const fb = document.getElementById('feedback');
+  const v1 = document.getElementById('num1').value;
+  const v2 = document.getElementById('num2').value;
+  fb.textContent = `The correct answer is ${v1} × ${v2} = ${correctAnswer}. The grid is filled with the correct values — check your working!`;
+  fb.className = 'feedback correct';
+}
+
+function checkAnswer() {
+  const input = document.getElementById('student-answer').value.trim();
+  const fb = document.getElementById('feedback');
+  if (!input) {
+    fb.textContent = 'Enter your answer first.';
+    fb.className = 'feedback wrong';
+    return;
+  }
+  if (parseInt(input) === correctAnswer) {
+    fb.textContent = `Correct! Well done — the answer is ${correctAnswer}.`;
+    fb.className = 'feedback correct';
+  } else {
+    fb.textContent = `Not quite. Double-check your diagonal sums and make sure you've carried any tens into the next diagonal.`;
+    fb.className = 'feedback wrong';
+  }
+}
+
+function clearFeedback() {
+  document.getElementById('feedback').className = 'feedback';
+}
+
+buildGrid();
+</script>
+</body>
+</html>
