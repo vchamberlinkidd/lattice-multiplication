@@ -180,7 +180,7 @@
     .grid-section {
       overflow-x: auto;
       margin-bottom: 1.5rem;
-      padding-bottom: 10px; /* Give room for sum boxes */
+      padding-bottom: 10px;
     }
 
     table.lattice {
@@ -252,23 +252,39 @@
     .inp-top { top: 10px; left: 4px; }
     .inp-bot { bottom: 10px; right: 4px; }
 
-    /* Redesigned to act as rounded caps at the very bottom of the columns */
-    .diag-value {
+    /* MODIFICATION: Updated to style an interactive, borderless input field */
+    .diag-value-input {
       width: 72px;
       height: 54px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border: none;
+      text-align: center;
       font-family: 'Georgia', serif;
       font-size: 1.2rem;
-      color: rgba(0,0,0,0.4);
+      color: var(--text);
       border-radius: 0 0 12px 12px;
-      transition: color 0.2s;
+      outline: none;
+      background-color: transparent;
+      transition: background-color 0.2s, color 0.2s;
     }
 
-    .diag-value.filled {
-      color: var(--text);
+    .diag-value-input::placeholder {
+      color: rgba(0, 0, 0, 0.25);
+    }
+
+    .diag-value-input:focus {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .diag-value-input.given {
+      color: var(--info-text);
       font-weight: bold;
+    }
+
+    /* Used during checkAnswer validation to highlight broken diagonals */
+    .diag-value-input.error-diagonal {
+      background-color: var(--danger-light) !important;
+      color: var(--danger-text) !important;
+      border: 1px solid #e8b0b0;
     }
 
     .answer-band {
@@ -450,15 +466,15 @@
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <div class="step-text"><strong>Add the diagonals:</strong> Follow the color paths! Starting from the bottom-right, add all numbers sitting inside the same colored stripes. The totals appear below.</div>
+        <div class="step-text"><strong>Add the diagonals:</strong> Follow the color paths! Starting from the bottom-right, add all numbers sitting inside the same colored stripes. Type your sum in the matching colored box at the bottom.</div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text"><strong>Carry if needed:</strong> If a diagonal sum is 10 or more, carry the tens digit into the next colored diagonal path to its left.</div>
+        <div class="step-text"><strong>Carry if needed:</strong> If a diagonal sum is 10 or more, carry the tens digit into your addition for the next colored diagonal path to its left.</div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
-        <div class="step-text"><strong>Read your answer:</strong> Read the diagonal sums from left to right — that's your final answer! Enter it above to check.</div>
+        <div class="step-text"><strong>Read your answer:</strong> Read your verified diagonal sums from left to right — that's your final answer! Enter it above to check.</div>
       </div>
     </div>
   </div>
@@ -501,8 +517,6 @@ function buildGrid() {
   const cols = digits1.length;
   const rows = digits2.length;
   const totalDiags = rows + cols; 
-  
-  // Total rendering columns (main grid + shifted extension area on the left)
   const totalCols = rows + cols;
 
   let html = '<table class="lattice"><tbody>';
@@ -519,11 +533,10 @@ function buildGrid() {
   html += `<td><div class="corner"></div></td>`;
   html += '</tr>';
 
-  // Render combined main grid + left-extension diagonals
+  // Main rows
   for (let r = 0; r < rows; r++) {
     html += '<tr>';
     for (let col = 0; col < totalCols; col++) {
-      // Calculate the active diagonal index for this specific cell space
       const d_top = col - rows + r;
       const d_bot = col - rows + r + 1;
       const isMainGrid = (col >= rows && col < rows + cols);
@@ -532,7 +545,6 @@ function buildGrid() {
       const colorBot = (d_bot >= 0 && d_bot < totalDiags) ? diagonalColors[d_bot % diagonalColors.length] : 'transparent';
 
       if (isMainGrid) {
-        // Render a full interactive lattice box
         const c = col - rows;
         const id = `cell_${r}_${c}`;
         html += `<td><div class="cell-wrap" id="${id}">
@@ -548,7 +560,6 @@ function buildGrid() {
                  oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')" />
         </div></td>`;
       } else {
-        // Render extension cell forming the clean diagonal stripes out of the left side
         if (colorTop !== 'transparent' || colorBot !== 'transparent') {
           html += `<td><div class="cell-wrap">
             <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
@@ -565,13 +576,17 @@ function buildGrid() {
     html += '</tr>';
   }
 
-  // Bottom row where the sums cap off the extended stripes perfectly
+  // Bottom row (Diagonal Sum Input Fields)
   html += '<tr>';
   for (let col = 0; col < totalCols; col++) {
     const d = col;
     if (d < totalDiags) {
       const diagColor = diagonalColors[d % diagonalColors.length];
-      html += `<td><div class="diag-value" id="diag_${d}" style="background-color: ${diagColor};">?</div></td>`;
+      // MODIFICATION: Turned static text `div` into an interactive `input` field
+      html += `<td>
+        <input type="text" class="diag-value-input" maxlength="2" id="diag_${d}" placeholder="?" 
+               style="background-color: ${diagColor};" oninput="onDiagInput(this)" />
+      </td>`;
     } else {
       html += `<td></td>`;
     }
@@ -591,7 +606,14 @@ function buildGrid() {
 
 function onCellInput(el) {
   el.value = el.value.replace(/[^0-9]/g, '').slice(-1);
-  updateDiagonals();
+  clearFeedback();
+}
+
+// MODIFICATION: Sanitizes the diagonal inputs as the student types
+function onDiagInput(el) {
+  el.value = el.value.replace(/[^0-9]/g, '');
+  el.classList.remove('error-diagonal');
+  clearFeedback();
 }
 
 function cellNav(e, id, r, c, part) {
@@ -606,41 +628,27 @@ function cellNav(e, id, r, c, part) {
       } else if (r + 1 < digits2.length) {
         document.getElementById(`cell_${r+1}_0_t`)?.focus();
       } else {
-        document.getElementById('student-answer')?.focus();
+        document.getElementById('diag_0')?.focus();
       }
     }
   }
 }
 
-function updateDiagonals() {
+// MODIFICATION: Helper function to calculate the true mathematical sums of each diagonal path
+function getCalculatedDiagonalSums() {
   const rows = digits2.length, cols = digits1.length;
   const totalDiags = rows + cols;
-  
   let sums = new Array(totalDiags).fill(0);
-  let complete = new Array(totalDiags).fill(true);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const t_str = document.getElementById(`cell_${r}_${c}_t`)?.value;
-      const b_str = document.getElementById(`cell_${r}_${c}_b`)?.value;
-
-      if (t_str === '' || b_str === '') {
-        complete[r + c] = false;
-        complete[r + c + 1] = false;
-      } else {
-        sums[r + c] += parseInt(t_str) || 0;
-        sums[r + c + 1] += parseInt(b_str) || 0;
-      }
+      const t_str = document.getElementById(`cell_${r}_${c}_t`)?.value || '0';
+      const b_str = document.getElementById(`cell_${r}_${c}_b`)?.value || '0';
+      sums[r + c] += parseInt(t_str) || 0;
+      sums[r + c + 1] += parseInt(b_str) || 0;
     }
   }
-
-  for (let d = 0; d < totalDiags; d++) {
-    const el = document.getElementById(`diag_${d}`);
-    if (el) {
-      el.textContent = complete[d] ? sums[d] : '?';
-      el.className = complete[d] ? 'diag-value filled' : 'diag-value';
-    }
-  }
+  return sums;
 }
 
 function toggleWorking() {
@@ -667,8 +675,23 @@ function toggleWorking() {
     }
   }
 
+  // MODIFICATION: Automatically fills or clears the diagonal sum input fields
+  const correctSums = getCalculatedDiagonalSums();
+  for (let d = 0; d < totalDiags; d++) {
+    const el = document.getElementById(`diag_${d}`);
+    if (el) {
+      el.classList.remove('error-diagonal');
+      if (isWorkingShown) {
+        el.value = correctSums[d];
+        el.classList.add('given');
+      } else {
+        el.value = '';
+        el.classList.remove('given');
+      }
+    }
+  }
+
   if (isWorkingShown) {
-    updateDiagonals();
     document.getElementById('student-answer').value = correctAnswer;
     const fb = document.getElementById('feedback');
     const v1 = document.getElementById('num1').value;
@@ -676,28 +699,52 @@ function toggleWorking() {
     fb.textContent = `The correct answer is ${v1} × ${v2} = ${correctAnswer}. The grid is filled with the correct values — check your working!`;
     fb.className = 'feedback correct';
   } else {
-    for (let d = 0; d < totalDiags; d++) {
-      const el = document.getElementById(`diag_${d}`);
-      if (el) { el.textContent = '?'; el.className = 'diag-value'; }
-    }
     document.getElementById('student-answer').value = '';
     clearFeedback();
   }
 }
 
+// MODIFICATION: Refactored validation to check both final totals and sub-diagonal entry inputs
 function checkAnswer() {
+  clearFeedback();
   const input = document.getElementById('student-answer').value.trim();
   const fb = document.getElementById('feedback');
+  
   if (!input) {
-    fb.textContent = 'Enter your answer first.';
+    fb.textContent = 'Enter your final answer first.';
     fb.className = 'feedback wrong';
     return;
   }
+
+  const totalDiags = digits2.length + digits1.length;
+  const correctSums = getCalculatedDiagonalSums();
+  let diagonalErrorsFound = false;
+
+  // Validate each user-entered diagonal input against computed math sums
+  for (let d = 0; d < totalDiags; d++) {
+    const el = document.getElementById(`diag_${d}`);
+    if (el) {
+      const studentDiagVal = el.value.trim();
+      if (studentDiagVal === '' || parseInt(studentDiagVal) !== correctSums[d]) {
+        el.classList.add('error-diagonal');
+        diagonalErrorsFound = true;
+      } else {
+        el.classList.remove('error-diagonal');
+      }
+    }
+  }
+
+  if (diagonalErrorsFound) {
+    fb.textContent = `Double-check your math! One or more of your diagonal sums (highlighted in red) don't match the numbers in the grid tiles.`;
+    fb.className = 'feedback wrong';
+    return;
+  }
+
   if (parseInt(input) === correctAnswer) {
-    fb.textContent = `Correct! Well done — the answer is ${correctAnswer}.`;
+    fb.textContent = `Correct! Perfect alignment and flawless math — the answer is ${correctAnswer}.`;
     fb.className = 'feedback correct';
   } else {
-    fb.textContent = `Not quite. Double-check your diagonal sums and make sure you've carried any tens into the next diagonal.`;
+    fb.textContent = `Your diagonal additions look right, but your final total is incorrect. Make sure you read the sums left-to-right, and remember to carry any values over 10 to the next column!`;
     fb.className = 'feedback wrong';
   }
 }
