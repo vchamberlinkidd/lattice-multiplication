@@ -454,6 +454,11 @@
       .top-bar { flex-direction: column; align-items: stretch; }
       .setup-card { max-width: none; }
     }
+
+    .error-cell {
+      border: 2px solid var(--danger) !important;
+      background-color: var(--danger-light) !important;
+    } 
   </style>
 </head>
 <body>
@@ -778,15 +783,44 @@ function toggleWorking() {
 
 function checkAnswer() {
   clearFeedback();
-  const input = document.getElementById('student-answer').value.trim();
   const fb = document.getElementById('feedback');
   
-  if (!input) {
-    fb.textContent = 'Enter your final answer first.';
+  // 1. Validate all Lattice Cells
+  let latticeErrors = false;
+  const rows = digits2.length, cols = digits1.length;
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const product = digits1[c] * digits2[r];
+      const tInput = document.getElementById(`cell_${r}_${c}_t`);
+      const bInput = document.getElementById(`cell_${r}_${c}_b`);
+      
+      const expectedT = Math.floor(product / 10);
+      const expectedB = product % 10;
+      
+      if (parseInt(tInput.value) !== expectedT) {
+        tInput.classList.add('error-cell');
+        latticeErrors = true;
+      } else {
+        tInput.classList.remove('error-cell');
+      }
+      
+      if (parseInt(bInput.value) !== expectedB) {
+        bInput.classList.add('error-cell');
+        latticeErrors = true;
+      } else {
+        bInput.classList.remove('error-cell');
+      }
+    }
+  }
+
+  if (latticeErrors) {
+    fb.textContent = "Oops! Some of the values inside your lattice grid are incorrect. Check your multiplication!";
     fb.className = 'feedback wrong';
     return;
   }
 
+  // 2. Validate Diagonal Sums (Only if grid is correct)
   const totalDiags = digits2.length + digits1.length;
   const { carriedSums } = getCarriedDiagonalSums();
   let diagonalErrorsFound = false;
@@ -796,8 +830,7 @@ function checkAnswer() {
     const wrapperEl = document.getElementById(`wrapper_${d}`);
     
     if (inputEl && wrapperEl) {
-      const studentDiagVal = inputEl.value.trim();
-      if (studentDiagVal === '' || parseInt(studentDiagVal) !== carriedSums[d]) {
+      if (inputEl.value.trim() === '' || parseInt(inputEl.value) !== carriedSums[d]) {
         wrapperEl.classList.add('error-diagonal');
         diagonalErrorsFound = true;
       } else {
@@ -807,16 +840,18 @@ function checkAnswer() {
   }
 
   if (diagonalErrorsFound) {
-    fb.textContent = `Double-check your math! One or more of your diagonal sums (highlighted in red) are incorrect. Don't forget to carry your tens over to the next column on the left!`;
+    fb.textContent = `Grid is correct, but your diagonal sums are wrong. Remember to carry your tens over to the left!`;
     fb.className = 'feedback wrong';
     return;
   }
 
+  // 3. Final Total Check
+  const input = document.getElementById('student-answer').value.trim();
   if (parseInt(input) === correctAnswer) {
-    fb.textContent = `Correct! Perfect alignment and flawless math — the answer is ${correctAnswer}.`;
+    fb.textContent = `Perfect! Everything is correct.`;
     fb.className = 'feedback correct';
   } else {
-    fb.textContent = `Your diagonal additions look right, but your final total is incorrect. Make sure you read the sums left-to-right!`;
+    fb.textContent = `The grid and diagonals are correct, but your final answer doesn't match. Read them left to right!`;
     fb.className = 'feedback wrong';
   }
 }
