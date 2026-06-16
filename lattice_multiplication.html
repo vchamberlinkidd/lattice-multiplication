@@ -180,6 +180,7 @@
     .grid-section {
       overflow-x: auto;
       margin-bottom: 1.5rem;
+      padding-bottom: 10px; /* Give room for sum boxes */
     }
 
     table.lattice {
@@ -190,6 +191,7 @@
     table.lattice td {
       padding: 0;
       position: relative;
+      vertical-align: top;
     }
 
     .top-digit, .left-digit {
@@ -237,7 +239,6 @@
       padding: 0;
     }
 
-    /* Added dynamic color focus adjustments to keep text readable */
     .cell-wrap input:focus {
       background: rgba(0, 0, 0, 0.06);
       border-radius: 4px;
@@ -251,27 +252,23 @@
     .inp-top { top: 10px; left: 4px; }
     .inp-bot { bottom: 10px; right: 4px; }
 
-    .diag-cell {
-      width: 48px;
-      height: 72px;
-    }
-
+    /* Redesigned to act as rounded caps at the very bottom of the columns */
     .diag-value {
-      width: 48px;
-      height: 72px;
+      width: 72px;
+      height: 54px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Georgia', serif;
-      font-size: 1.1rem;
-      color: var(--text-muted);
-      border-radius: var(--radius);
+      font-size: 1.2rem;
+      color: rgba(0,0,0,0.4);
+      border-radius: 0 0 12px 12px;
+      transition: color 0.2s;
     }
 
     .diag-value.filled {
       color: var(--text);
       font-weight: bold;
-      border: 1px solid rgba(0,0,0,0.1);
     }
 
     .answer-band {
@@ -471,18 +468,10 @@
 let digits1 = [], digits2 = [], correctAnswer = 0;
 let isWorkingShown = false;
 
-// MODIFICATION: Added an array of distinct, soft pastel colors for up to 10 diagonals (maximum 5x5 digits)
 const diagonalColors = [
-  '#e2ece9', // Muted Sage Green
-  '#f5e6e8', // Soft Rose Pink
-  '#e8e8f4', // Pale Lavender Blue
-  '#f7eedf', // Warm Sand/Cream
-  '#e3f2fd', // Light Sky Blue
-  '#fbe9e7', // Pale Apricot/Coral
-  '#f3e5f5', // Soft Lilac
-  '#e8f5e9', // Mint Tint
-  '#efebe9', // Muted Taupe/Gray
-  '#fff3e0'  // Pale Soft Orange
+  '#e2ece9', '#f5e6e8', '#e8e8f4', '#f7eedf', 
+  '#e3f2fd', '#fbe9e7', '#f3e5f5', '#e8f5e9', 
+  '#efebe9', '#fff3e0'
 ];
 
 function handleSetupInput(el) {
@@ -512,67 +501,82 @@ function buildGrid() {
   const cols = digits1.length;
   const rows = digits2.length;
   const totalDiags = rows + cols; 
+  
+  // Total rendering columns (main grid + shifted extension area on the left)
+  const totalCols = rows + cols;
 
   let html = '<table class="lattice"><tbody>';
 
   // Top digit row
   html += '<tr>';
-  html += `<td><div class="corner"></div></td>`;
-  for (let c = 0; c < cols; c++) {
-    html += `<td><div class="top-digit">${digits1[c]}</div></td>`;
+  for (let col = 0; col < totalCols; col++) {
+    if (col >= rows && col < rows + cols) {
+      html += `<td><div class="top-digit">${digits1[col - rows]}</div></td>`;
+    } else {
+      html += `<td></td>`;
+    }
   }
-  html += `<td colspan="${totalDiags + 1}"></td>`;
+  html += `<td><div class="corner"></div></td>`;
   html += '</tr>';
 
-  // Main rows
+  // Render combined main grid + left-extension diagonals
   for (let r = 0; r < rows; r++) {
     html += '<tr>';
-    html += `<td><div class="corner"></div></td>`;
-    for (let c = 0; c < cols; c++) {
-      const id = `cell_${r}_${c}`;
-      
-      // MODIFICATION: Look up the respective diagonal color sequence index for top vs bottom paths
-      const topColor = diagonalColors[(r + c) % diagonalColors.length];
-      const botColor = diagonalColors[(r + c + 1) % diagonalColors.length];
+    for (let col = 0; col < totalCols; col++) {
+      // Calculate the active diagonal index for this specific cell space
+      const d_top = col - rows + r;
+      const d_bot = col - rows + r + 1;
+      const isMainGrid = (col >= rows && col < rows + cols);
 
-      html += `<td><div class="cell-wrap" id="${id}">
-        <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="0,0 72,0 0,72" fill="${topColor}" />
-          <polygon points="72,0 72,72 0,72" fill="${botColor}" />
-          <rect x="0.5" y="0.5" width="71" height="71" fill="none" stroke="#c5c2b8" stroke-width="0.75"/>
-          <line x1="0" y1="72" x2="72" y2="0" stroke="#9b9890" stroke-width="0.75"/>
-        </svg>
-        <input class="inp-top" type="text" maxlength="1" id="${id}_t" placeholder="·"
-               oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_t',${r},${c},'t')" />
-        <input class="inp-bot" type="text" maxlength="1" id="${id}_b" placeholder="·"
-               oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')" />
-      </div></td>`;
+      const colorTop = (d_top >= 0 && d_top < totalDiags) ? diagonalColors[d_top % diagonalColors.length] : 'transparent';
+      const colorBot = (d_bot >= 0 && d_bot < totalDiags) ? diagonalColors[d_bot % diagonalColors.length] : 'transparent';
+
+      if (isMainGrid) {
+        // Render a full interactive lattice box
+        const c = col - rows;
+        const id = `cell_${r}_${c}`;
+        html += `<td><div class="cell-wrap" id="${id}">
+          <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="0,0 72,0 0,72" fill="${colorTop}" stroke="${colorTop}" stroke-width="0.5"/>
+            <polygon points="72,0 72,72 0,72" fill="${colorBot}" stroke="${colorBot}" stroke-width="0.5"/>
+            <rect x="0.5" y="0.5" width="71" height="71" fill="none" stroke="#c5c2b8" stroke-width="0.75"/>
+            <line x1="0" y1="72" x2="72" y2="0" stroke="#9b9890" stroke-width="0.75"/>
+          </svg>
+          <input class="inp-top" type="text" maxlength="1" id="${id}_t" placeholder="·"
+                 oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_t',${r},${c},'t')" />
+          <input class="inp-bot" type="text" maxlength="1" id="${id}_b" placeholder="·"
+                 oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')" />
+        </div></td>`;
+      } else {
+        // Render extension cell forming the clean diagonal stripes out of the left side
+        if (colorTop !== 'transparent' || colorBot !== 'transparent') {
+          html += `<td><div class="cell-wrap">
+            <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+              ${colorTop !== 'transparent' ? `<polygon points="0,0 72,0 0,72" fill="${colorTop}" stroke="${colorTop}" stroke-width="0.5" />` : ''}
+              ${colorBot !== 'transparent' ? `<polygon points="72,0 72,72 0,72" fill="${colorBot}" stroke="${colorBot}" stroke-width="0.5" />` : ''}
+            </svg>
+          </div></td>`;
+        } else {
+          html += `<td><div class="cell-wrap"></div></td>`;
+        }
+      }
     }
-
-    // Right digit
     html += `<td><div class="left-digit">${digits2[r]}</div></td>`;
-
-    // Empty structural spacing columns
-    for (let d = 0; d < totalDiags; d++) {
-      html += `<td><div class="diag-cell"></div></td>`;
-    }
-
     html += '</tr>';
   }
 
-  // Diagonal sums row (Bottom row results)
+  // Bottom row where the sums cap off the extended stripes perfectly
   html += '<tr>';
-  html += `<td><div class="corner"></div></td>`;
-  for (let c = 0; c < cols; c++) {
-    html += `<td></td>`;
+  for (let col = 0; col < totalCols; col++) {
+    const d = col;
+    if (d < totalDiags) {
+      const diagColor = diagonalColors[d % diagonalColors.length];
+      html += `<td><div class="diag-value" id="diag_${d}" style="background-color: ${diagColor};">?</div></td>`;
+    } else {
+      html += `<td></td>`;
+    }
   }
-  html += `<td></td>`;
-  for (let d = 0; d < totalDiags; d++) {
-    // MODIFICATION: Styled the result boxes to visually match the diagonal path backgrounds
-    const diagColor = diagonalColors[d % diagonalColors.length];
-    html += `<td><div class="diag-value" id="diag_${d}" style="background-color: ${diagColor};">?</div></td>`;
-  }
-  html += '</tr>';
+  html += `<td></td></tr>`;
 
   html += '</tbody></table>';
 
