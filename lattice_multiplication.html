@@ -66,7 +66,6 @@
       padding: 2rem 1.5rem 4rem;
     }
 
-    /* MODIFICATION: New layout for the top controls */
     .top-bar {
       display: flex;
       justify-content: space-between;
@@ -83,24 +82,12 @@
       padding: 1.5rem;
     }
 
-    /* MODIFICATION: Nice pastel color for the setup box */
     .setup-card {
       background: #eef5f9; 
       border-color: #cce0eb;
       margin-bottom: 0; 
       flex-grow: 1;
       max-width: max-content;
-    }
-
-    .actions-right {
-      display: flex;
-      align-items: center;
-    }
-
-    .actions-right button {
-      padding: 12px 24px;
-      font-size: 1rem;
-      font-weight: 600;
     }
 
     .card-label {
@@ -309,7 +296,6 @@
     }
     .diag-input-wrapper.error-diagonal input { color: var(--danger-text) !important; }
 
-    /* MODIFICATION: Increased size of carry indicator */
     .carry-indicator {
       position: absolute;
       top: 4px;
@@ -326,15 +312,17 @@
     }
     .carry-indicator.visible { display: block; }
 
+    .answer-container {
+      margin-bottom: 1.25rem;
+    }
+
     .answer-band {
       background: var(--accent-light);
       border: 1px solid #a8d5bc;
       border-radius: var(--radius-lg);
-      padding: 1rem 1.5rem; /* slightly tighter padding */
-      margin-bottom: 1.25rem;
+      padding: 1rem 1.5rem;
     }
 
-    /* MODIFICATION: Answer row elements placed inline */
     .answer-row {
       display: flex;
       align-items: center;
@@ -356,7 +344,6 @@
       color: var(--accent-text);
     }
 
-    /* MODIFICATION: Made input wide enough for large results */
     .answer-row input {
       font-family: 'Georgia', serif;
       font-size: 1.4rem;
@@ -459,6 +446,22 @@
       border: 2px solid var(--danger) !important;
       background-color: var(--danger-light) !important;
     } 
+
+    .working-heading {
+      font-family: 'Arial', sans-serif;
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--info-text);
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      border-top: 1px dashed var(--border);
+      padding-top: 1.5rem;
+    }
+
+    #working-grid-wrap {
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -484,10 +487,6 @@
         </div>
       </div>
     </div>
-    
-    <div class="actions-right">
-      <button class="secondary" id="toggle-btn" onclick="toggleWorking()">Show working</button>
-    </div>
   </div>
 
   <div class="hint" id="hint">
@@ -498,14 +497,18 @@
     <div id="grid-wrap"></div>
   </div>
 
-  <div class="answer-band" id="answer-band" style="display:none;">
-    <div class="answer-row">
-      <span class="answer-label">Enter your answer here:</span>
-      <span class="eq" id="eq-label"></span>
-      <input type="text" id="student-answer" placeholder="Your answer…" oninput="clearFeedback()" />
-      <button class="primary" onclick="checkAnswer()">Check</button>
+  <div class="answer-container" id="answer-container" style="display:none;">
+    <div class="answer-band" id="answer-band">
+      <div class="answer-row">
+        <span class="answer-label">Enter your answer here:</span>
+        <span class="eq" id="eq-label"></span>
+        <input type="text" id="student-answer" placeholder="Your answer…" oninput="clearFeedback()" />
+        <button class="primary" onclick="checkAnswer()">Check</button>
+        <button class="secondary" id="toggle-btn" onclick="toggleWorking()">Show working</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
     </div>
-    <div class="feedback" id="feedback"></div>
+    <div id="working-grid-wrap" style="display:none;"></div>
   </div>
 
   <div class="step-guide">
@@ -546,29 +549,32 @@ function handleSetupInput(el) {
   buildGrid();
 }
 
-function buildGrid() {
-  const v1 = document.getElementById('num1').value.trim();
-  const v2 = document.getElementById('num2').value.trim();
-  
-  if (!v1 || !v2 || isNaN(v1) || isNaN(v2) || v1 === '' || v2 === '') {
-    document.getElementById('grid-section').style.display = 'none';
-    document.getElementById('answer-band').style.display = 'none';
-    document.getElementById('hint').style.display = 'block';
-    return;
-  }
-
-  digits1 = v1.split('').map(Number);
-  digits2 = v2.split('').map(Number);
-  correctAnswer = parseInt(v1) * parseInt(v2);
-
-  isWorkingShown = false;
-  const toggleBtn = document.getElementById('toggle-btn');
-  if(toggleBtn) toggleBtn.textContent = 'Show working';
-
+function generateLatticeHTML(isReadOnly) {
   const cols = digits1.length;
   const rows = digits2.length;
   const totalDiags = rows + cols; 
   const totalCols = rows + cols;
+
+  let carriedSums = new Array(totalDiags).fill(0);
+  let carriesReceived = new Array(totalDiags).fill(0);
+
+  if (isReadOnly) {
+    let rawSums = new Array(totalDiags).fill(0);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const product = digits1[c] * digits2[r];
+        rawSums[r + c] += Math.floor(product / 10);
+        rawSums[r + c + 1] += product % 10;
+      }
+    }
+    let currentCarry = 0;
+    for (let d = totalDiags - 1; d >= 0; d--) {
+      let columnTotal = rawSums[d] + currentCarry;
+      carriedSums[d] = columnTotal % 10;
+      carriesReceived[d] = currentCarry;
+      currentCarry = Math.floor(columnTotal / 10);
+    }
+  }
 
   let html = '<table class="lattice"><tbody>';
 
@@ -597,7 +603,16 @@ function buildGrid() {
 
       if (isMainGrid) {
         const c = col - rows;
-        const id = `cell_${r}_${c}`;
+        const prefix = isReadOnly ? `ro_` : '';
+        const id = `${prefix}cell_${r}_${c}`;
+        
+        const product = digits1[c] * digits2[r];
+        const valTop = isReadOnly ? Math.floor(product / 10) : '';
+        const valBot = isReadOnly ? product % 10 : '';
+        const classTop = isReadOnly ? 'inp-top given' : 'inp-top';
+        const classBot = isReadOnly ? 'inp-bot given' : 'inp-bot';
+        const roAttribute = isReadOnly ? 'readonly' : '';
+
         html += `<td><div class="cell-wrap" id="${id}">
           <svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
             <polygon points="0,0 72,0 0,72" fill="${colorTop}" stroke="${colorTop}" stroke-width="0.5"/>
@@ -605,10 +620,10 @@ function buildGrid() {
             <rect x="0.5" y="0.5" width="71" height="71" fill="none" stroke="#c5c2b8" stroke-width="0.75"/>
             <line x1="0" y1="72" x2="72" y2="0" stroke="#9b9890" stroke-width="0.75"/>
           </svg>
-          <input class="inp-top" type="text" maxlength="1" id="${id}_t" placeholder="·"
-                 oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_t',${r},${c},'t')" />
-          <input class="inp-bot" type="text" maxlength="1" id="${id}_b" placeholder="·"
-                 oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')" />
+          <input class="${classTop}" type="text" maxlength="1" id="${id}_t" placeholder="${isReadOnly ? '' : '·'}" value="${valTop}" ${roAttribute}
+                 ${isReadOnly ? '' : `oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_t',${r},${c},'t')"`} />
+          <input class="${classBot}" type="text" maxlength="1" id="${id}_b" placeholder="${isReadOnly ? '' : '·'}" value="${valBot}" ${roAttribute}
+                 ${isReadOnly ? '' : `oninput="onCellInput(this)" onkeydown="cellNav(event,'${id}_b',${r},${c},'b')"`} />
         </div></td>`;
       } else {
         if (colorTop !== 'transparent' || colorBot !== 'transparent') {
@@ -633,10 +648,17 @@ function buildGrid() {
     const d = col;
     if (d < totalDiags) {
       const diagColor = diagonalColors[d % diagonalColors.length];
+      const prefix = isReadOnly ? `ro_` : '';
+      const valDiag = isReadOnly ? carriedSums[d] : '';
+      const classDiag = isReadOnly ? 'diag-value-input given' : 'diag-value-input';
+      const roAttribute = isReadOnly ? 'readonly' : '';
+      const carryVisibleClass = isReadOnly && carriesReceived[d] > 0 ? 'visible' : '';
+      const carryText = isReadOnly && carriesReceived[d] > 0 ? `+${carriesReceived[d]}` : '';
+
       html += `<td>
-        <div class="diag-input-wrapper" id="wrapper_${d}" style="background-color: ${diagColor};">
-          <span class="carry-indicator" id="carry_${d}"></span>
-          <input type="text" class="diag-value-input" maxlength="1" id="diag_${d}" placeholder="?" oninput="onDiagInput(this, ${d})" />
+        <div class="diag-input-wrapper" id="${prefix}wrapper_${d}" style="background-color: ${diagColor};">
+          <span class="carry-indicator ${carryVisibleClass}" id="${prefix}carry_${d}">${carryText}</span>
+          <input type="text" class="${classDiag}" maxlength="1" id="${prefix}diag_${d}" placeholder="${isReadOnly ? '' : '?'}" value="${valDiag}" ${roAttribute} ${isReadOnly ? '' : `oninput="onDiagInput(this, ${d})"`} />
         </div>
       </td>`;
     } else {
@@ -646,11 +668,35 @@ function buildGrid() {
   html += `<td></td></tr>`;
 
   html += '</tbody></table>';
+  return html;
+}
 
-  document.getElementById('grid-wrap').innerHTML = html;
+function buildGrid() {
+  const v1 = document.getElementById('num1').value.trim();
+  const v2 = document.getElementById('num2').value.trim();
+  
+  if (!v1 || !v2 || isNaN(v1) || isNaN(v2) || v1 === '' || v2 === '') {
+    document.getElementById('grid-section').style.display = 'none';
+    document.getElementById('answer-container').style.display = 'none';
+    document.getElementById('hint').style.display = 'block';
+    return;
+  }
+
+  digits1 = v1.split('').map(Number);
+  digits2 = v2.split('').map(Number);
+  correctAnswer = parseInt(v1) * parseInt(v2);
+
+  isWorkingShown = false;
+  const toggleBtn = document.getElementById('toggle-btn');
+  if(toggleBtn) toggleBtn.textContent = 'Show working';
+
+  document.getElementById('grid-wrap').innerHTML = generateLatticeHTML(false);
+  document.getElementById('working-grid-wrap').style.display = 'none';
+  document.getElementById('working-grid-wrap').innerHTML = '';
+
   document.getElementById('hint').style.display = 'none';
   document.getElementById('grid-section').style.display = 'block';
-  document.getElementById('answer-band').style.display = 'block';
+  document.getElementById('answer-container').style.display = 'block';
   document.getElementById('eq-label').textContent = `${v1} × ${v2} =`;
   document.getElementById('student-answer').value = '';
   clearFeedback();
@@ -719,65 +765,14 @@ function toggleWorking() {
   const toggleBtn = document.getElementById('toggle-btn');
   toggleBtn.textContent = isWorkingShown ? 'Hide working' : 'Show working';
 
-  const rows = digits2.length, cols = digits1.length;
-  const totalDiags = rows + cols;
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const t = document.getElementById(`cell_${r}_${c}_t`);
-      const b = document.getElementById(`cell_${r}_${c}_b`);
-      
-      if (isWorkingShown) {
-        const product = digits1[c] * digits2[r];
-        if (t) { t.value = Math.floor(product / 10); t.className = 'inp-top given'; }
-        if (b) { b.value = product % 10; b.className = 'inp-bot given'; }
-      } else {
-        if (t) { t.value = ''; t.className = 'inp-top'; }
-        if (b) { b.value = ''; b.className = 'inp-bot'; }
-      }
-    }
-  }
-
-  const { carriedSums, carriesReceived } = getCarriedDiagonalSums();
-  
-  for (let d = 0; d < totalDiags; d++) {
-    const inputEl = document.getElementById(`diag_${d}`);
-    const wrapperEl = document.getElementById(`wrapper_${d}`);
-    const carryEl = document.getElementById(`carry_${d}`);
-    
-    if (wrapperEl) wrapperEl.classList.remove('error-diagonal');
-    
-    if (isWorkingShown) {
-      if (inputEl) {
-        inputEl.value = carriedSums[d];
-        inputEl.classList.add('given');
-      }
-      if (carryEl && carriesReceived[d] > 0) {
-        carryEl.textContent = "+" + carriesReceived[d];
-        carryEl.classList.add('visible');
-      }
-    } else {
-      if (inputEl) {
-        inputEl.value = '';
-        inputEl.classList.remove('given');
-      }
-      if (carryEl) {
-        carryEl.textContent = "";
-        carryEl.classList.remove('visible');
-      }
-    }
-  }
+  const workingWrap = document.getElementById('working-grid-wrap');
 
   if (isWorkingShown) {
-    document.getElementById('student-answer').value = correctAnswer;
-    const fb = document.getElementById('feedback');
-    const v1 = document.getElementById('num1').value;
-    const v2 = document.getElementById('num2').value;
-    fb.textContent = `The correct answer is ${v1} × ${v2} = ${correctAnswer}. The grid shows the correct carried sums — check your working!`;
-    fb.className = 'feedback correct';
+    workingWrap.innerHTML = `<div class="working-heading">Correct Answer Solution:</div>` + generateLatticeHTML(true);
+    workingWrap.style.display = 'block';
   } else {
-    document.getElementById('student-answer').value = '';
-    clearFeedback();
+    workingWrap.style.display = 'none';
+    workingWrap.innerHTML = '';
   }
 }
 
@@ -785,7 +780,6 @@ function checkAnswer() {
   clearFeedback();
   const fb = document.getElementById('feedback');
   
-  // 1. Validate all Lattice Cells
   let latticeErrors = false;
   const rows = digits2.length, cols = digits1.length;
   
@@ -820,7 +814,6 @@ function checkAnswer() {
     return;
   }
 
-  // 2. Validate Diagonal Sums (Only if grid is correct)
   const totalDiags = digits2.length + digits1.length;
   const { carriedSums } = getCarriedDiagonalSums();
   let diagonalErrorsFound = false;
@@ -845,7 +838,6 @@ function checkAnswer() {
     return;
   }
 
-  // 3. Final Total Check
   const input = document.getElementById('student-answer').value.trim();
   if (parseInt(input) === correctAnswer) {
     fb.textContent = `Perfect! Everything is correct.`;
