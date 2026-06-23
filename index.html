@@ -823,7 +823,10 @@ function checkAnswer() {
     const wrapperEl = document.getElementById(`wrapper_${d}`);
     
     if (inputEl && wrapperEl) {
-      if (inputEl.value.trim() === '' || parseInt(inputEl.value) !== carriedSums[d]) {
+      // If the user leaves it blank, treat it as a 0
+      const userValue = inputEl.value.trim() === '' ? 0 : parseInt(inputEl.value);
+        
+      if (userValue !== carriedSums[d]) {
         wrapperEl.classList.add('error-diagonal');
         diagonalErrorsFound = true;
       } else {
