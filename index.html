@@ -671,7 +671,8 @@ function generateLatticeHTML(isReadOnly) {
       html += `<td>
         <div class="diag-input-wrapper" id="${prefix}wrapper_${d}" style="background-color: ${diagColor};">
           <span class="carry-indicator ${carryVisibleClass}" id="${prefix}carry_${d}">${carryText}</span>
-          <input type="text" class="${classDiag}" maxlength="2" id="${prefix}diag_${d}" placeholder="${isReadOnly ? '' : '?'}" value="${valDiag}" ${roAttribute} ${isReadOnly ? '' : `onfocus="this.select()" oninput="onDiagInput(this, ${d})"`} />
+          <input type="text" class="${classDiag}" maxlength="2" id="${prefix}diag_${d}" placeholder="${isReadOnly ? '' : '?'}" value="${valDiag}" ${roAttribute} 
+                 ${isReadOnly ? '' : `onfocus="this.select()" oninput="onDiagInput(this, ${d})" onkeydown="diagNav(event, ${d})"`} />
         </div>
       </td>`;
     } else {
@@ -732,6 +733,20 @@ function onDiagInput(el, d) {
   const wrapper = document.getElementById(`wrapper_${d}`);
   if(wrapper) wrapper.classList.remove('error-diagonal');
   clearFeedback();
+}
+
+function diagNav(e, currentIdx) {
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    if (currentIdx > 0) {
+      // Move one box to the left
+      e.preventDefault();
+      document.getElementById(`diag_${currentIdx - 1}`)?.focus();
+    } else {
+      // Furthest left reached! Jump straight to the final answer box
+      e.preventDefault();
+      document.getElementById('student-answer')?.focus();
+    }
+  }
 }
 
 function cellNav(e, id, r, c, part) {
