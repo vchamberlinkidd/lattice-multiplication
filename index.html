@@ -739,7 +739,9 @@ function cellNav(e, id, r, c, part) {
       } else if (r + 1 < digits2.length) {
         document.getElementById(`cell_${r+1}_0_t`)?.focus();
       } else {
-        document.getElementById('diag_0')?.focus();
+        // Calculate the furthest right diagonal index (units column)
+        const lastDiagIndex = digits1.length + digits2.length - 1;
+        document.getElementById(`diag_${lastDiagIndex}`)?.focus();
       }
     }
   }
